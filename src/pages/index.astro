@@ -1,16 +1,66 @@
 ---
+import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<BaseLayout>
+  <h1>Daily Grid</h1>
+  <p class="today">
+    <time id="today" data-testid="today-date"></time>
+  </p>
+
+  <section class="card" aria-labelledby="puzzle-heading">
+    <h2 id="puzzle-heading">Today's puzzle is coming soon</h2>
+    <p>
+      A new puzzle every day, the same for everyone. Check back soon for the
+      first one.
+    </p>
+  </section>
+</BaseLayout>
+
+<script>
+  import { dateKey } from '../lib/daily-seed';
+
+  // The site is static, so the date is rendered in the browser to follow the
+  // visitor's local day rather than the build date.
+  const el = document.getElementById('today');
+  if (el instanceof HTMLTimeElement) {
+    const now = new Date();
+    el.dateTime = dateKey(now);
+    el.textContent = now.toLocaleDateString(undefined, {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }
+</script>
+
+<style>
+  h1 {
+    margin: 0;
+    font-size: 2rem;
+  }
+
+  .today {
+    margin: 0.25rem 0 2rem;
+    min-height: 1.5em;
+    color: var(--muted);
+  }
+
+  .card {
+    padding: 1.25rem 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--card);
+  }
+
+  .card h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.25rem;
+  }
+
+  .card p {
+    margin: 0;
+    color: var(--muted);
+  }
+</style>

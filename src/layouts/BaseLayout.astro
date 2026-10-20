@@ -1,0 +1,117 @@
+---
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = 'Daily Grid',
+  description = 'A new puzzle every day. Everyone gets the same one.',
+} = Astro.props;
+
+const repoUrl = 'https://github.com/AlexitoRD/daily-grid';
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="site-name" href="/">
+        Daily Grid
+      </a>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <a href={repoUrl}>Source on GitHub</a>
+    </footer>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    color-scheme: light dark;
+    --bg: #fafaf7;
+    --fg: #1c1c1a;
+    --muted: #5f5f5a;
+    --card: #ffffff;
+    --border: #dcdcd5;
+    --accent: #2f5fd0;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615;
+      --fg: #ececea;
+      --muted: #a3a39d;
+      --card: #20201e;
+      --border: #3a3a36;
+      --accent: #8fb0ff;
+    }
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: system-ui, sans-serif;
+    line-height: 1.5;
+  }
+
+  main {
+    flex: 1;
+    width: 100%;
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+  }
+
+  a {
+    color: var(--accent);
+  }
+</style>
+
+<style>
+  .site-header,
+  .site-footer {
+    width: 100%;
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+
+  .site-header {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .site-name {
+    color: var(--fg);
+    font-weight: 700;
+    font-size: 1.125rem;
+    text-decoration: none;
+  }
+
+  .site-footer {
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+</style>
