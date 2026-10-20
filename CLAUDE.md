@@ -20,6 +20,16 @@ localStorage.
 - `src/pages/` one route per page; games live at `/games/<name>`
 - `e2e/` Playwright tests
 
+## Astro
+
+- Start the dev server in the background with `npx astro dev --background`.
+  Manage it with `npx astro dev stop`, `status` and `logs`.
+- Docs: https://docs.astro.build. Check the relevant guide before working on
+  [routing](https://docs.astro.build/en/guides/routing/),
+  [Astro components](https://docs.astro.build/en/basics/astro-components/),
+  [React islands](https://docs.astro.build/en/guides/framework-components/) or
+  [styling](https://docs.astro.build/en/guides/styling/).
+
 ## Rules
 
 - Game logic is pure TypeScript with no DOM access, so it can be unit tested.
