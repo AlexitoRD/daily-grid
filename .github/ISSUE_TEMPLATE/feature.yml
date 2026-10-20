@@ -1,0 +1,24 @@
+name: Feature
+description: A task for a human or the agent
+title: '[Feature] '
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should exist when this is done, in one or two sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: A checklist the PR can be judged against.
+      placeholder: '- [ ] ...'
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes and constraints
+      description: Files to touch, things to avoid, dependencies allowed.
