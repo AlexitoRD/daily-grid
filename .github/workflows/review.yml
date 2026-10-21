@@ -151,13 +151,6 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # The agent opens these PRs and pushes fixes as the Claude app.
           allowed_bots: claude[bot]
-          settings: |
-            {
-              "env": {
-                "BASH_DEFAULT_TIMEOUT_MS": "600000",
-                "BASH_MAX_TIMEOUT_MS": "600000"
-              }
-            }
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -172,9 +165,7 @@ jobs:
             with `gh pr view --comments` if you need it.
 
             Then run npm run lint, npm run check, npm run test:coverage and
-            npm run test:e2e, and fix anything that fails. If port 4321 is
-            already in use, stop the leftover server with
-            pkill -f 'astro preview' and run it again.
+            npm run test:e2e, and fix anything that fails.
 
             Commit with a message starting "Address review findings", push with
             `git push origin HEAD`, and post a short PR comment with
@@ -183,4 +174,4 @@ jobs:
           claude_args: |
             --model claude-opus-5-5
             --max-turns 60
-            --allowedTools "Edit,Write,Read,Grep,Glob,Bash(npm run:*),Bash(npm ci),Bash(npx prettier:*),Bash(npx playwright:*),Bash(pkill:*),Bash(git status),Bash(git diff:*),Bash(git add:*),Bash(git commit:*),Bash(git push origin HEAD),Bash(gh pr view:*),Bash(gh pr comment:*)"
+            --allowedTools "Edit,Write,Read,Grep,Glob,Bash(npm run:*),Bash(npm ci),Bash(npx prettier:*),Bash(npx playwright:*),Bash(git status),Bash(git diff:*),Bash(git add:*),Bash(git commit:*),Bash(git push origin HEAD),Bash(gh pr view:*),Bash(gh pr comment:*)"

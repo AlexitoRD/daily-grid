@@ -14,7 +14,10 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run build && npm run preview',
+    // --ignore-lock keeps the server in the foreground. Without it, astro preview
+    // moves itself to the background when an AI agent runs it, and Playwright
+    // sees the command exit early.
+    command: 'npm run build && npm run preview -- --ignore-lock',
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
