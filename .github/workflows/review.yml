@@ -1,0 +1,186 @@
+name: Review
+
+# Reviews pull requests from the agent's `claude/` branches with Claude Sonnet.
+# If the review fails, Claude fixes the findings and pushes to the PR branch,
+# which starts a new review. After MAX_REVIEWS reviews on a PR, it stops and
+# asks a human to take over.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# One review or fix at a time per PR. Pushes made while one is running queue
+# behind it instead of cancelling a fix halfway through.
+concurrency:
+  group: review-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  MAX_REVIEWS: 3
+
+jobs:
+  review:
+    # Only the agent's branches, and never forks.
+    if: |
+      startsWith(github.head_ref, 'claude/') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+      id-token: write
+    outputs:
+      verdict: ${{ steps.result.outputs.verdict }}
+      findings: ${{ steps.result.outputs.findings }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - id: review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # The agent opens these PRs and pushes fixes as the Claude app.
+          allowed_bots: claude[bot]
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Review this pull request. It was written by an AI agent working on
+            a GitHub issue, under the rules in CLAUDE.md.
+
+            1. Read the PR with `gh pr view` and the changes with `gh pr diff`.
+            2. Find the issue it closes ("Closes #<n>" in the PR body) and read
+               its acceptance criteria with `gh issue view`.
+            3. Read CLAUDE.md and any files you need for context.
+
+            Check that:
+            - every acceptance criterion is met
+            - the code is correct, including edge cases
+            - the CLAUDE.md rules are followed: pure game logic, randomness
+              only through createRng(seedFromKey(dateKey(date))), unit tests
+              for new functions, an e2e test for new pages, accessibility,
+              no edits to .github/, CLAUDE.md or coverage thresholds, no new
+              dependencies unless the issue allows them
+            - the tests actually check the behaviour, not just run the code
+
+            CI already runs lint, type checks and tests, so don't repeat them.
+
+            Post an inline comment on each specific problem, then one summary
+            comment on the PR with `gh pr comment` that starts with
+            "**Review: pass**" or "**Review: changes requested**".
+
+            Only fail the review for problems that should block merging: bugs,
+            unmet acceptance criteria, broken CLAUDE.md rules, missing or
+            ineffective tests, or accessibility problems. Mention style
+            suggestions and nice-to-haves in the summary, but pass the review
+            if they are the only issues.
+
+            Return verdict "fail" with each blocking finding as a short,
+            self-contained instruction a developer could act on, or verdict
+            "pass" with an empty findings list.
+          claude_args: |
+            --model claude-sonnet-5-5
+            --max-turns 40
+            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh issue view:*)"
+            --json-schema '{"type":"object","properties":{"verdict":{"type":"string","enum":["pass","fail"]},"findings":{"type":"array","items":{"type":"string"}}},"required":["verdict","findings"]}'
+      - id: result
+        env:
+          OUTPUT: ${{ steps.review.outputs.structured_output }}
+        run: |
+          verdict=$(jq -r '.verdict // "fail"' <<< "$OUTPUT")
+          findings=$(jq -r '.findings // [] | map("- " + .) | join("\n")' <<< "$OUTPUT")
+          echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
+          {
+            echo "findings<<FINDINGS_EOF"
+            echo "$findings"
+            echo "FINDINGS_EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "Verdict: $verdict"
+          echo "$findings"
+          if [ "$verdict" != "pass" ]; then
+            echo "::error::Review requested changes"
+            exit 1
+          fi
+
+  fix:
+    needs: review
+    if: always() && needs.review.outputs.verdict == 'fail'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+      actions: read
+    steps:
+      - id: rounds
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          reviews=$(gh run list --workflow review.yml --branch "$HEAD_REF" --event pull_request --limit 100 --json databaseId --jq length)
+          echo "Reviews on this PR so far: $reviews (limit $MAX_REVIEWS)"
+          if [ "$reviews" -ge "$MAX_REVIEWS" ]; then
+            gh pr comment "$PR" --body "The review still requests changes after $reviews reviews, so the agent has stopped. A human needs to look at this PR."
+            echo "continue=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "continue=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.rounds.outputs.continue == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 1
+      - if: steps.rounds.outputs.continue == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+      - if: steps.rounds.outputs.continue == 'true'
+        run: npm ci
+      - if: steps.rounds.outputs.continue == 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.rounds.outputs.continue == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # The agent opens these PRs and pushes fixes as the Claude app.
+          allowed_bots: claude[bot]
+          settings: |
+            {
+              "env": {
+                "BASH_DEFAULT_TIMEOUT_MS": "600000",
+                "BASH_MAX_TIMEOUT_MS": "600000"
+              }
+            }
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+            BRANCH: ${{ github.head_ref }}
+
+            The automated code review of this pull request requested changes.
+            Fix these findings, following CLAUDE.md:
+
+            ${{ needs.review.outputs.findings }}
+
+            The inline review comments on the PR have more detail; read them
+            with `gh pr view --comments` if you need it.
+
+            Then run npm run lint, npm run check, npm run test:coverage and
+            npm run test:e2e, and fix anything that fails. If port 4321 is
+            already in use, stop the leftover server with
+            pkill -f 'astro preview' and run it again.
+
+            Commit with a message starting "Address review findings", push with
+            `git push origin HEAD`, and post a short PR comment with
+            `gh pr comment` listing what you changed. Pushing starts a new
+            review.
+          claude_args: |
+            --model claude-opus-5-5
+            --max-turns 60
+            --allowedTools "Edit,Write,Read,Grep,Glob,Bash(npm run:*),Bash(npm ci),Bash(npx prettier:*),Bash(npx playwright:*),Bash(pkill:*),Bash(git status),Bash(git diff:*),Bash(git add:*),Bash(git commit:*),Bash(git push origin HEAD),Bash(gh pr view:*),Bash(gh pr comment:*)"
