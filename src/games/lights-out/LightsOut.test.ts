@@ -36,6 +36,10 @@ describe('LightsOut', () => {
     expect(html).not.toContain('Solved');
   });
 
+  it('does not show the Share button before the puzzle is solved', () => {
+    expect(render(date)).not.toContain('>Share</button>');
+  });
+
   it('uses today when no date is given', () => {
     const html = render();
     dailyPuzzle(new Date()).forEach((on, i) => {
