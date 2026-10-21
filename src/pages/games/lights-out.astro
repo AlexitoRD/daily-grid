@@ -1,0 +1,30 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import LightsOut from '../../games/lights-out/LightsOut';
+---
+
+<BaseLayout
+  title="Lights Out · Daily Grid"
+  description="Turn off every light. A new Lights Out puzzle every day."
+>
+  <h1>Lights Out</h1>
+  <p class="intro">
+    Pressing a light toggles it and the lights above, below, left and right of
+    it. Turn every light off in as few moves as you can.
+  </p>
+
+  <!-- client:only so the puzzle uses the visitor's local date, not the build date -->
+  <LightsOut client:only="react" />
+</BaseLayout>
+
+<style>
+  h1 {
+    margin: 0;
+    font-size: 2rem;
+  }
+
+  .intro {
+    margin: 0.25rem 0 1.5rem;
+    color: var(--muted);
+  }
+</style>
