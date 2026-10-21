@@ -42,8 +42,9 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # The agent opens these PRs and pushes fixes as the Claude app.
-          allowed_bots: claude[bot]
+          # The agent opens these PRs and pushes fixes as a bot. GitHub reports
+          # its pushes as github-actions[bot] even though it uses the Claude app.
+          allowed_bots: claude[bot],github-actions[bot]
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -149,8 +150,9 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # The agent opens these PRs and pushes fixes as the Claude app.
-          allowed_bots: claude[bot]
+          # The agent opens these PRs and pushes fixes as a bot. GitHub reports
+          # its pushes as github-actions[bot] even though it uses the Claude app.
+          allowed_bots: claude[bot],github-actions[bot]
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
