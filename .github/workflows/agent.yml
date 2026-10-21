@@ -14,17 +14,20 @@ on:
   pull_request_review:
     types: [submitted]
 
-concurrency:
-  group: agent-${{ github.event.issue.number || github.event.pull_request.number }}
-  cancel-in-progress: false
-
 jobs:
   agent:
+    # Comments from bots (including Claude's own progress comments) never
+    # trigger a run.
     if: |
       (github.event_name == 'issues' && github.event.label.name == 'agent') ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+      (github.event_name == 'issue_comment' && github.event.comment.user.type != 'Bot' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && github.event.comment.user.type != 'Bot' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && github.event.review.user.type != 'Bot' && contains(github.event.review.body, '@claude'))
+    # One run per issue or PR at a time. Set on the job, not the workflow, so
+    # skipped runs don't queue behind a running one.
+    concurrency:
+      group: agent-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -49,8 +52,18 @@ jobs:
           label_trigger: agent
           additional_permissions: |
             actions: read
+          # The e2e tests build and serve the site, which can take longer than
+          # Claude Code's default 2-minute command timeout. A timed-out run can
+          # leave the preview server holding port 4321.
+          settings: |
+            {
+              "env": {
+                "BASH_DEFAULT_TIMEOUT_MS": "600000",
+                "BASH_MAX_TIMEOUT_MS": "600000"
+              }
+            }
           claude_args: |
             --model claude-opus-5-5
             --max-turns 80
-            --allowedTools "Bash(npm run:*),Bash(npm ci),Bash(npx prettier:*),Bash(npx playwright:*)"
-            --append-system-prompt "Follow CLAUDE.md. Before finishing, run npm run lint, npm run check, npm run test:coverage and npm run test:e2e, and fix anything that fails."
+            --allowedTools "Bash(npm run:*),Bash(npm ci),Bash(npx prettier:*),Bash(npx playwright:*),Bash(pkill:*)"
+            --append-system-prompt "Follow CLAUDE.md. Before finishing, run npm run lint, npm run check, npm run test:coverage and npm run test:e2e, and fix anything that fails. If npm run test:e2e says port 4321 is already in use, stop the leftover server with pkill -f 'astro preview' and run it again; do not change playwright.config.ts to work around it."
