@@ -52,18 +52,8 @@ jobs:
           label_trigger: agent
           additional_permissions: |
             actions: read
-          # The e2e tests build and serve the site, which can take longer than
-          # Claude Code's default 2-minute command timeout. A timed-out run can
-          # leave the preview server holding port 4321.
-          settings: |
-            {
-              "env": {
-                "BASH_DEFAULT_TIMEOUT_MS": "600000",
-                "BASH_MAX_TIMEOUT_MS": "600000"
-              }
-            }
           claude_args: |
             --model claude-opus-5-5
             --max-turns 80
-            --allowedTools "Bash(npm run:*),Bash(npm ci),Bash(npx prettier:*),Bash(npx playwright:*),Bash(pkill:*),Bash(gh pr create:*),Bash(gh pr list:*)"
-            --append-system-prompt "Follow CLAUDE.md. Before finishing, run npm run lint, npm run check, npm run test:coverage and npm run test:e2e, and fix anything that fails. If npm run test:e2e says port 4321 is already in use, stop the leftover server with pkill -f 'astro preview' and run it again; do not change playwright.config.ts to work around it. When you are working on an issue and all four checks pass, push your branch and open a pull request into main with gh pr create, following the Pull requests section of CLAUDE.md, unless gh pr list shows one already exists for your branch. Link the PR in your final comment. Opening the PR starts an automated code review."
+            --allowedTools "Bash(npm run:*),Bash(npm ci),Bash(npx prettier:*),Bash(npx playwright:*),Bash(gh pr create:*),Bash(gh pr list:*)"
+            --append-system-prompt "Follow CLAUDE.md. Before finishing, run npm run lint, npm run check, npm run test:coverage and npm run test:e2e, and fix anything that fails. If e2e cannot start its server, report it rather than changing playwright.config.ts. When you are working on an issue and all four checks pass, push your branch and open a pull request into main with gh pr create, following the Pull requests section of CLAUDE.md, unless gh pr list shows one already exists for your branch. Link the PR in your final comment. Opening the PR starts an automated code review."
