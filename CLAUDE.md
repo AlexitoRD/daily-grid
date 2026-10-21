@@ -14,7 +14,9 @@ localStorage.
 ## Structure
 
 - `src/lib/` shared utilities (`daily-seed.ts`: `dateKey`, `seedFromKey`,
-  `createRng`)
+  `createRng`; `share.ts`: `buildShareText`, `shareText`)
+- `src/components/` shared UI components used by several games
+  (`ShareButton.tsx`)
 - `src/games/<name>/` one folder per game: `logic.ts`, `logic.test.ts`, UI
   component
 - `src/pages/` one route per page; games live at `/games/<name>`
@@ -35,6 +37,10 @@ localStorage.
 - Game logic is pure TypeScript with no DOM access, so it can be unit tested.
 - All randomness goes through `createRng(seedFromKey(dateKey(date)))`. Never
   `Math.random()`.
+- Every game exports `shareLines` from its `logic.ts`, returning its result
+  lines (for example `["Solved in 14 moves"]`), and shows `ShareButton` with
+  text from `buildShareText` once solved. Shared text must never reveal the
+  puzzle or its solution.
 - Every new function gets unit tests. Every new page gets an e2e smoke test.
 - Keep coverage at or above the thresholds in `vitest.config.ts`. Never lower
   them.
