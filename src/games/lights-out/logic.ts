@@ -124,3 +124,9 @@ export function cellLabel(index: number, on: boolean): string {
 export function movesText(moves: number): string {
   return `${moves} ${moves === 1 ? 'move' : 'moves'}`;
 }
+
+// Result lines for the share text. Only the move count, so nothing about the
+// puzzle or its solution is given away.
+export function shareLines(moves: number): string[] {
+  return [`Solved in ${movesText(moves)}`];
+}

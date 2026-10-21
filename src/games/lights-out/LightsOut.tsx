@@ -1,4 +1,6 @@
-import { useMemo, useReducer } from 'react';
+import { useMemo, useReducer, useState } from 'react';
+import ShareButton from '../../components/ShareButton';
+import { buildShareText } from '../../lib/share';
 import { createHandlers } from './controls';
 import {
   cellLabel,
@@ -7,6 +9,7 @@ import {
   initGame,
   isSolved,
   movesText,
+  shareLines,
 } from './logic';
 import styles from './LightsOut.module.css';
 
@@ -17,8 +20,10 @@ interface Props {
 }
 
 export default function LightsOut({ date }: Props) {
-  const [state, dispatch] = useReducer(gameReducer, date, (d) =>
-    initGame(dailyPuzzle(d ?? new Date())),
+  // Fixed on first render so the puzzle and the shared date always match.
+  const [today] = useState(() => date ?? new Date());
+  const [state, dispatch] = useReducer(gameReducer, today, (d) =>
+    initGame(dailyPuzzle(d)),
   );
   const handlers = useMemo(() => createHandlers(dispatch), []);
   const solved = isSolved(state.grid);
@@ -70,6 +75,19 @@ export default function LightsOut({ date }: Props) {
       >
         {solved ? `Solved in ${movesText(state.moves)}!` : ''}
       </p>
+
+      {solved && (
+        <ShareButton
+          text={buildShareText({
+            game: 'Lights Out',
+            date: today,
+            lines: shareLines(state.moves),
+            // The page URL without any query or hash. Only rendered in the
+            // browser, once solved.
+            url: window.location.origin + window.location.pathname,
+          })}
+        />
+      )}
     </div>
   );
 }

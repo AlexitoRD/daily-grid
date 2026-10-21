@@ -6,6 +6,7 @@ import {
   randomPresses,
 } from '../src/games/lights-out/logic';
 import { createRng, dateKey, seedFromKey } from '../src/lib/daily-seed';
+import { shareDate } from '../src/lib/share';
 
 const cells = (page: import('@playwright/test').Page) =>
   page.getByRole('group', { name: 'Lights Out board' }).getByRole('button');
@@ -76,6 +77,41 @@ test('Lights Out shows a message when solved', async ({ page }) => {
   expect(await states(page)).toEqual(Array(25).fill('false'));
 });
 
+test('Lights Out can share the result once solved', async ({
+  page,
+  context,
+}) => {
+  // Desktop Chromium may or may not have a share sheet. Remove it so the
+  // clipboard fallback is used.
+  await page.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, 'share', { value: undefined });
+  });
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/games/lights-out');
+  await expect(cells(page)).toHaveCount(25);
+
+  const share = page.getByRole('button', { name: 'Share' });
+  await expect(share).toHaveCount(0);
+
+  const today = new Date();
+  const presses = randomPresses(createRng(seedFromKey(dateKey(today))));
+  for (const index of presses) await cells(page).nth(index).click();
+
+  // Keyboard: focus the button and press Enter.
+  await share.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('share-message')).toHaveText('Copied!');
+
+  const text = await page.evaluate(() => navigator.clipboard.readText());
+  expect(text).toBe(
+    [
+      `Daily Grid · Lights Out · ${shareDate(today)}`,
+      `Solved in ${presses.length} moves`,
+      new URL('/games/lights-out', page.url()).href,
+    ].join('\n'),
+  );
+});
+
 test('Lights Out fits a phone screen without horizontal scrolling', async ({
   page,
 }) => {
@@ -83,8 +119,15 @@ test('Lights Out fits a phone screen without horizontal scrolling', async ({
   await page.goto('/games/lights-out');
   await expect(cells(page)).toHaveCount(25);
 
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - window.innerWidth,
-  );
-  expect(overflow).toBeLessThanOrEqual(0);
+  const overflow = () =>
+    page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+  expect(await overflow()).toBeLessThanOrEqual(0);
+
+  // Still fits once solved and the Share button appears.
+  const presses = randomPresses(createRng(seedFromKey(dateKey(new Date()))));
+  for (const index of presses) await cells(page).nth(index).click();
+  await expect(page.getByRole('button', { name: 'Share' })).toBeVisible();
+  expect(await overflow()).toBeLessThanOrEqual(0);
 });

@@ -15,6 +15,7 @@ import {
   movesText,
   press,
   randomPresses,
+  shareLines,
   SIZE,
   type Grid,
 } from './logic';
@@ -302,5 +303,15 @@ describe('movesText', () => {
   it('uses the plural otherwise', () => {
     expect(movesText(0)).toBe('0 moves');
     expect(movesText(7)).toBe('7 moves');
+  });
+});
+
+describe('shareLines', () => {
+  it('uses the singular for one move', () => {
+    expect(shareLines(1)).toEqual(['Solved in 1 move']);
+  });
+
+  it('uses the plural otherwise', () => {
+    expect(shareLines(12)).toEqual(['Solved in 12 moves']);
   });
 });
