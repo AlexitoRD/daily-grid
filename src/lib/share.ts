@@ -48,15 +48,27 @@ function isAbort(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError';
 }
 
-// Uses the share sheet when the browser has one, otherwise copies to the
-// clipboard. If the share sheet fails for a reason other than the user
-// cancelling it, falls back to the clipboard.
+// The part of Window that hasCoarsePointer uses, so tests can pass a fake.
+export type PointerWindow = Partial<Pick<Window, 'matchMedia'>>;
+
+// True on touch devices, where the share sheet is the natural way to share.
+// Desktop browsers may have a share sheet too, but copying suits them better.
+export function hasCoarsePointer(
+  win: PointerWindow | undefined = globalThis.window,
+): boolean {
+  return win?.matchMedia?.('(pointer: coarse)').matches ?? false;
+}
+
+// On touch devices, uses the share sheet when the browser has one. Otherwise
+// copies to the clipboard. If the share sheet fails for a reason other than
+// the user cancelling it, falls back to the clipboard.
 export async function shareText(
   text: string,
   nav: ShareNavigator | undefined = globalThis.navigator,
+  touch: boolean = hasCoarsePointer(),
 ): Promise<ShareResult> {
   const data = { text };
-  if (nav?.share && (!nav.canShare || nav.canShare(data))) {
+  if (touch && nav?.share && (!nav.canShare || nav.canShare(data))) {
     try {
       await nav.share(data);
       return 'shared';

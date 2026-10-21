@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import {
   buildShareText,
+  hasCoarsePointer,
   shareDate,
   shareMessage,
   shareText,
@@ -76,6 +77,27 @@ describe('buildShareText', () => {
   });
 });
 
+describe('hasCoarsePointer', () => {
+  const win = (matches: boolean) => ({
+    matchMedia: vi.fn().mockReturnValue({ matches }),
+  });
+
+  it('is true on touch devices', () => {
+    const w = win(true);
+    expect(hasCoarsePointer(w)).toBe(true);
+    expect(w.matchMedia).toHaveBeenCalledWith('(pointer: coarse)');
+  });
+
+  it('is false with a fine pointer', () => {
+    expect(hasCoarsePointer(win(false))).toBe(false);
+  });
+
+  it('is false without matchMedia or a window', () => {
+    expect(hasCoarsePointer({})).toBe(false);
+    expect(hasCoarsePointer(undefined)).toBe(false);
+  });
+});
+
 describe('shareText', () => {
   const text = 'Daily Grid · Lights Out · 21 Oct 2026';
   const abort = () =>
@@ -86,18 +108,44 @@ describe('shareText', () => {
     writeText = vi.fn().mockResolvedValue(undefined);
   });
 
-  it('uses the share sheet when available', async () => {
+  it('uses the share sheet on touch devices', async () => {
     const share = vi.fn().mockResolvedValue(undefined);
     const nav: ShareNavigator = { share, clipboard: clipboard() };
-    expect(await shareText(text, nav)).toBe('shared');
+    expect(await shareText(text, nav, true)).toBe('shared');
     expect(share).toHaveBeenCalledWith({ text });
     expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it('copies instead of using the share sheet with a fine pointer', async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    const nav: ShareNavigator = { share, clipboard: clipboard() };
+    const result = await shareText(text, nav, false);
+    expect(result).toBe('copied');
+    expect(shareMessage(result)).toBe('Copied!');
+    expect(writeText).toHaveBeenCalledWith(text);
+    expect(share).not.toHaveBeenCalled();
+  });
+
+  it('checks the pointer by default', async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    const nav: ShareNavigator = { share, clipboard: clipboard() };
+    const matchMedia = vi.fn().mockReturnValue({ matches: true });
+    vi.stubGlobal('window', { matchMedia });
+    try {
+      expect(await shareText(text, nav)).toBe('shared');
+      expect(matchMedia).toHaveBeenCalledWith('(pointer: coarse)');
+      matchMedia.mockReturnValue({ matches: false });
+      expect(await shareText(text, nav)).toBe('copied');
+      expect(share).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('uses the share sheet when canShare accepts the text', async () => {
     const share = vi.fn().mockResolvedValue(undefined);
     const canShare = vi.fn().mockReturnValue(true);
-    expect(await shareText(text, { share, canShare })).toBe('shared');
+    expect(await shareText(text, { share, canShare }, true)).toBe('shared');
     expect(canShare).toHaveBeenCalledWith({ text });
   });
 
@@ -108,13 +156,13 @@ describe('shareText', () => {
       canShare: () => false,
       clipboard: clipboard(),
     };
-    expect(await shareText(text, nav)).toBe('copied');
+    expect(await shareText(text, nav, true)).toBe('copied');
     expect(share).not.toHaveBeenCalled();
   });
 
   it('copies to the clipboard when there is no share sheet', async () => {
     const nav: ShareNavigator = { clipboard: clipboard() };
-    expect(await shareText(text, nav)).toBe('copied');
+    expect(await shareText(text, nav, true)).toBe('copied');
     expect(writeText).toHaveBeenCalledWith(text);
   });
 
@@ -123,7 +171,7 @@ describe('shareText', () => {
       share: vi.fn().mockRejectedValue(abort()),
       clipboard: clipboard(),
     };
-    expect(await shareText(text, nav)).toBe('cancelled');
+    expect(await shareText(text, nav, true)).toBe('cancelled');
     expect(writeText).not.toHaveBeenCalled();
   });
 
@@ -132,7 +180,7 @@ describe('shareText', () => {
       share: vi.fn().mockRejectedValue(new Error('NotAllowedError')),
       clipboard: clipboard(),
     };
-    expect(await shareText(text, nav)).toBe('copied');
+    expect(await shareText(text, nav, true)).toBe('copied');
     expect(writeText).toHaveBeenCalledWith(text);
   });
 
@@ -152,7 +200,7 @@ describe('shareText', () => {
     const nav: ShareNavigator = {
       share: vi.fn().mockRejectedValue(new Error('NotAllowedError')),
     };
-    expect(await shareText(text, nav)).toBe('failed');
+    expect(await shareText(text, nav, true)).toBe('failed');
   });
 
   it('uses the global navigator by default', async () => {

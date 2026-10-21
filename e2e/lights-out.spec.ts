@@ -81,14 +81,27 @@ test('Lights Out can share the result once solved', async ({
   page,
   context,
 }) => {
-  // Desktop Chromium may or may not have a share sheet. Remove it so the
-  // clipboard fallback is used.
+  // Desktop Chromium has a fine pointer, so Share should copy even when a
+  // share sheet exists. Provide one that records calls to check it is unused.
   await page.addInitScript(() => {
-    Object.defineProperty(Navigator.prototype, 'share', { value: undefined });
+    const w = window as typeof window & { shareCalls: number };
+    w.shareCalls = 0;
+    Object.defineProperty(Navigator.prototype, 'share', {
+      configurable: true,
+      value: async () => {
+        w.shareCalls++;
+      },
+    });
   });
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.goto('/games/lights-out');
   await expect(cells(page)).toHaveCount(25);
+  expect(
+    await page.evaluate(() => ({
+      share: typeof navigator.share,
+      coarse: matchMedia('(pointer: coarse)').matches,
+    })),
+  ).toEqual({ share: 'function', coarse: false });
 
   const share = page.getByRole('button', { name: 'Share' });
   await expect(share).toHaveCount(0);
@@ -101,6 +114,11 @@ test('Lights Out can share the result once solved', async ({
   await share.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('share-message')).toHaveText('Copied!');
+  expect(
+    await page.evaluate(
+      () => (window as typeof window & { shareCalls: number }).shareCalls,
+    ),
+  ).toBe(0);
 
   const text = await page.evaluate(() => navigator.clipboard.readText());
   expect(text).toBe(
